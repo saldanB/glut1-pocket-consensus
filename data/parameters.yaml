@@ -1,0 +1,44 @@
+# Parameters of the consensus pipeline.
+# Every value used in the manuscript is here; nothing is hard-coded in the code.
+
+ensemble:
+  n_frames: 500
+  phase1: [1, 100]        # inclusive frame range
+  phase2: [101, 500]
+
+tools: [AutoSite, Fpocket, P2Rank, SiteHound, SiteFerret, DeepPocket]
+
+# HDBSCAN min_cluster_size, per tool and phase (Supplementary Table 1).
+# Chosen per tool because the tools differ by a factor of three in the number
+# of pockets they emit per frame; see the sensitivity analysis in run/03.
+min_cluster_size:
+  Phase1: {AutoSite: 40, Fpocket: 40, P2Rank: 40, SiteHound: 40, SiteFerret: 20, DeepPocket: 30}
+  Phase2: {AutoSite: 100, Fpocket: 125, P2Rank: 120, SiteHound: 60, SiteFerret: 75, DeepPocket: 100}
+
+consensus:
+  cutoff_A: 6.5           # centroid distance below which clusters of different tools merge
+  min_tools: 4            # a region is a consensus region when supported by >= this many tools
+  delta_frames: 5         # gap tolerated by the soft-persistence criterion
+
+alignment:
+  selection: CA           # rigid-body fit on protein Calpha atoms
+  reference_frame: 1      # first frame of the trajectory
+
+iou:
+  voxel_A: 1.0            # grid resolution used in the manuscript
+  radius_A: 5.0           # expansion radius R around each pocket-defining point
+  threshold: 0.5          # IoU above which a pair is called concordant
+  n_frames_sampled: 15
+  seed: 20260915
+  # the sensitivity sweep of run/04 covers:
+  sweep_voxel_A: [0.8, 1.0, 1.5, 2.0]
+  sweep_radius_A: [3.0, 4.0, 5.0, 6.0]
+  sweep_threshold: [0.1, 0.2, 0.3, 0.5]
+
+sensitivity:
+  min_cluster_size_scales: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+  consensus_thresholds: [3, 4, 5, 6]
+  top_k: [5, 10, 15]
+  subsample_n_frames: 80
+  subsample_replicates: 40
+  seed: 20260915

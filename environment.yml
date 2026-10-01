@@ -1,0 +1,13 @@
+# conda env create -f environment.yml && conda activate glut1-pockets
+name: glut1-pockets
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - numpy=1.26
+  - pandas=2.2
+  - scipy=1.13
+  - scikit-learn=1.4
+  - hdbscan=0.8.37
+  - matplotlib=3.8
+  - pyyaml=6.0
+  - pip
