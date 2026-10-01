@@ -2,7 +2,8 @@
 """Volumetric agreement and its parameter sensitivity (Editor E1, R3 #8, R4 #1).
 
 Needs the per-tool point clouds, which are not shipped with the repository:
-see data/README.md. The script exits with a clear message if they are absent.
+run run/00_fetch.py first, or see data/README.md. The script exits with a clear
+message if they are absent.
 
 Writes results/04_iou_sensitivity.csv, results/04_iou_pair_ranking.csv
 """
@@ -17,8 +18,8 @@ TOOLS = p["tools"]; C = p["iou"]
 clouds_dir = os.path.join(io.DATA, "pointclouds")
 if not clouds_available(clouds_dir, TOOLS):
     sys.exit(f"point clouds not found in {clouds_dir}\n"
-             "download them from the deposit (see data/README.md); every other\n"
-             "step of the pipeline runs without them.")
+             "fetch them with: python run/00_fetch.py   (see data/README.md)\n"
+             "every other step of the pipeline runs without them.")
 
 io.banner("04  IoU sensitivity over voxel size, expansion radius and threshold")
 clouds = load_all(clouds_dir, TOOLS)
