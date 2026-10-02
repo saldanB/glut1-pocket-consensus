@@ -18,11 +18,11 @@ not survive. Re-running the detectors themselves is documented separately in
 conda env create -f environment.yml
 conda activate glut1-pockets
 
-python run/01_align.py         # superposition, ~1 min
-python run/02_consensus.py     # consensus regions, ~3 min
-python run/03_sensitivity.py   # robustness analyses, ~25 min
-python run/04_iou.py           # volumetric agreement, ~1 min
-python run/99_verify.py        # check the output against the paper
+python run/01_align.py
+python run/02_consensus.py
+python run/03_sensitivity.py
+python run/04_iou.py
+python run/99_verify.py
 ```
 
 or simply `make all`. Every step reads only what is in `data/`: no network access
