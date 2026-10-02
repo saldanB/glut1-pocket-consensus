@@ -8,15 +8,6 @@ ensemble:
 
 tools: [AutoSite, Fpocket, P2Rank, SiteHound, SiteFerret, DeepPocket]
 
-# Deposit holding the files that are too large for this repository: the per-tool
-# point clouds needed by run/04, and the 500 ensemble frames needed only to
-# re-run the detectors. run/00_fetch.py reads this block; it is the only place
-# the deposit is named, so a moved deposit is a one-line change here.
-deposit:
-  doi: null                                  # e.g. 10.5281/zenodo.1234567
-  api: https://zenodo.org/api/records        # record metadata and checksums
-  frames_archive: null                       # filename of the frames archive in the deposit
-
 # HDBSCAN min_cluster_size, per tool and phase (Supplementary Table 1).
 # Chosen per tool because the tools differ by a factor of three in the number
 # of pockets they emit per frame; see the sensitivity analysis in run/03.

@@ -1,5 +1,4 @@
 results/
-data/pointclouds/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/

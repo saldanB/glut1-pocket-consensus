@@ -18,18 +18,16 @@ not survive. Re-running the detectors themselves is documented separately in
 conda env create -f environment.yml
 conda activate glut1-pockets
 
-python run/00_fetch.py         # deposited point clouds, only needed for 04_iou;
-                               # set deposit.doi first, see data/README.md
 python run/01_align.py         # superposition, ~1 min
 python run/02_consensus.py     # consensus regions, ~3 min
 python run/03_sensitivity.py   # robustness analyses, ~25 min
+python run/04_iou.py           # volumetric agreement, ~1 min
 python run/99_verify.py        # check the output against the paper
 ```
 
-or simply `make all`, which runs everything except `00_fetch` and `04_iou`:
-those two touch the network and the deposit respectively, so they stay explicit.
-`run/04_iou.py` needs the point clouds, which are too large to track here;
-`make fetch` downloads them — see [`data/README.md`](data/README.md).
+or simply `make all`. Every step reads only what is in `data/`: no network access
+is involved at any point, and the only thing you have to install is the
+environment above.
 
 `run/99_verify.py` compares the regenerated tables with the values printed in the
 paper and exits non-zero if any of them disagrees. It is the fastest way to tell
@@ -39,7 +37,6 @@ whether your environment reproduces our results.
 
 | step | question it answers | reviewer item | output |
 |---|---|---|---|
-| `00_fetch` | — (downloads the deposited point clouds) | — | `data/pointclouds/` |
 | `01_align` | how much does the rigid-body superposition move the centroids? | Editor E3, R3 #4 | `01_alignment_effect.csv` |
 | `02_consensus` | the consensus regions, with and without superposition | Editor E3, R1 #2 | `02_consensus_*.csv` |
 | `03_sensitivity a` | does the answer depend on `min_cluster_size`? | R3 #3, R4 #1 | `03a_*.csv` |
@@ -56,8 +53,9 @@ replicates for a smoke test.
 ## Layout
 
 ```
-data/            pocket table, protein Calpha coordinates, published centres, parameters
-run/00_fetch.py  downloads what is too large to track: the point clouds
+data/            pocket table, Calpha coordinates, published centres, parameters
+data/pointclouds/
+                 per-tool pocket-defining points, read by run/04
 src/             the pipeline: consensus.py, align.py, iou.py
 run/             one script per analysis, plus 99_verify.py
 tools/           how the six detectors were run, with the exact command lines

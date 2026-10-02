@@ -12,7 +12,7 @@ Note that ``radius`` is the tolerance of the criterion, not a free parameter of
 the representation: the mean IoU depends on it monotonically, which is why the
 sweep in run/04 reports it explicitly.
 
-Point clouds are not shipped with the repository (31 MB); see data/README.md.
+The point clouds live in data/pointclouds/; see data/README.md.
 """
 from __future__ import annotations
 
