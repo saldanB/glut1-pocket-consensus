@@ -1,7 +1,8 @@
 # Pocket detection across MD ensembles — analysis code
 
-Code and parameters for *From Static Prediction to Dynamic Consensus: Binding
-Pocket Detection Across Protein Molecular Dynamics Ensembles*.
+Code and parameters for *Dynamic consensus pocket detection across molecular
+dynamics ensembles reveals persistent and transient druggable sites*
+([preprint](https://doi.org/10.64898/2026.06.27.734992)).
 
 Everything reported in the paper about clustering, consensus, persistence,
 volumetric agreement and the robustness analyses can be regenerated from the
@@ -78,3 +79,16 @@ it does not change any conclusion. `run/99_verify.py` marks those checks
 The pocket table itself is the output of the six detectors and is deposited as
 data: the numbers in the paper follow from it deterministically, apart from the
 caveat above.
+
+## Citation
+
+Marigliani G, Petrizzelli F, Mangoni M, Bianco SD, Orzella I, Guzzi PH, Caputo V,
+Biagini T, Mazza T. *Dynamic consensus pocket detection across molecular dynamics
+ensembles reveals persistent and transient druggable sites*. bioRxiv, 2 July 2026.
+doi:[10.64898/2026.06.27.734992](https://doi.org/10.64898/2026.06.27.734992)
+
+`CITATION.cff` carries the same reference in machine-readable form; GitHub renders
+it as BibTeX and APA under *Cite this repository*.
+
+The ensemble frames are deposited separately at
+doi:[10.5281/zenodo.21238931](https://doi.org/10.5281/zenodo.21238931).

@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+message: >-
+  If you use this code or the deposited pocket table, please cite the paper
+  below.
+title: "glut1-pocket-consensus"
+abstract: >-
+  Analysis code for consensus binding-pocket detection across protein molecular
+  dynamics ensembles: clustering, consensus regions, persistence, volumetric
+  agreement and the robustness analyses, regenerated from the deposited pocket
+  table.
+type: software
+authors:
+  - given-names: Giulia
+    family-names: Marigliani
+  - given-names: Francesco
+    family-names: Petrizzelli
+  - given-names: Manuel
+    family-names: Mangoni
+  - given-names: Salvatore Daniele
+    family-names: Bianco
+  - given-names: Irene
+    family-names: Orzella
+  - given-names: Pietro Hiram
+    family-names: Guzzi
+  - given-names: Viviana
+    family-names: Caputo
+  - given-names: Tommaso
+    family-names: Biagini
+  - given-names: Tommaso
+    family-names: Mazza
+preferred-citation:
+  type: article
+  title: >-
+    Dynamic consensus pocket detection across molecular dynamics ensembles
+    reveals persistent and transient druggable sites
+  authors:
+    - given-names: Giulia
+      family-names: Marigliani
+    - given-names: Francesco
+      family-names: Petrizzelli
+    - given-names: Manuel
+      family-names: Mangoni
+    - given-names: Salvatore Daniele
+      family-names: Bianco
+    - given-names: Irene
+      family-names: Orzella
+    - given-names: Pietro Hiram
+      family-names: Guzzi
+    - given-names: Viviana
+      family-names: Caputo
+    - given-names: Tommaso
+      family-names: Biagini
+    - given-names: Tommaso
+      family-names: Mazza
+  journal: bioRxiv
+  year: 2026
+  month: 7
+  doi: 10.64898/2026.06.27.734992
+  notes: Preprint

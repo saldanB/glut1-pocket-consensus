@@ -43,6 +43,8 @@ only because it disagrees with the other detectors.
 
 ## Not in this repository
 
-**The 500 frames** themselves (PDB) are not included. They are needed only to
-re-run the detectors or the MDpocket cross-check, both documented in `tools/`;
-every analysis in `run/` works from the files above.
+**The 500 frames** themselves (PDB) are not included: they are needed only to
+re-run the detectors or the MDpocket cross-check, both documented in `tools/`,
+and every analysis in `run/` works from the files above. They are deposited at
+doi:[10.5281/zenodo.21238931](https://doi.org/10.5281/zenodo.21238931) as
+`frames-GLUT1_MD.zip`, which unpacks to `frames/frame.<N>.pdb` for N = 1 to 500.
