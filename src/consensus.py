@@ -4,17 +4,17 @@ Three steps, in this order:
 
 1. per tool, HDBSCAN on the pocket centroids pooled over all frames of a phase,
    with ``min_cluster_size`` taken from ``data/parameters.yaml``;
-2. cluster centres belonging to *different* tools and lying within ``cutoff`` of
-   one another are merged into a consensus region (connected components of the
-   proximity graph);
+2. the cluster centres of all tools are grouped by Ward hierarchical clustering
+   cut at ``cutoff`` (6.5 A); the centre of a group is the simple mean of its
+   member centres;
 3. a region is a consensus region when at least ``min_tools`` distinct tools
    contribute to it.
 
-Occupancy is the fraction of frames in which the region is detected. Soft
-persistence is the fraction covered by the longest run of frames, tolerating
-gaps of at most ``delta`` frames; both are normalised by the number of frames
-actually present in the reference set, so that subsampled sets are handled
-correctly.
+Occupancy is the fraction of frames in which the region is detected by at
+least one tool. Persistence follows the Methods: for each contributing tool,
+the fraction of the phase covered by runs of detection lasting at least 20 % of
+the phase, with gaps of at most ``delta`` frames (soft, delta = 5) or none
+(strict); the region value is the mean over tools, with the inter-tool SD.
 """
 from __future__ import annotations
 
@@ -44,59 +44,67 @@ def cluster_one_tool(sub: pd.DataFrame, min_cluster_size: int) -> list[dict]:
     return out
 
 
-def persistence(frames, all_frames, delta: int = 5) -> tuple[float, float]:
-    """Occupancy and soft persistence of one region."""
+def _runs_fraction(frames, all_frames, delta: int) -> float:
+    """Fraction of the phase covered by runs of detection lasting >= 20 % of the phase.
+
+    A run is a sequence of detections in which consecutive frames are separated
+    by at most ``delta`` missing frames (delta = 5: soft; delta = 0: strict).
+    Frames are indexed on ``all_frames`` so that subsampled sets are handled.
+    """
     all_frames = np.sort(np.asarray(all_frames))
-    frames = np.sort(np.unique(np.asarray(frames)))
-    if frames.size == 0 or all_frames.size == 0:
-        return 0.0, 0.0
-    occupancy = frames.size / all_frames.size
+    n = all_frames.size
     rank = {v: i for i, v in enumerate(all_frames)}
-    r = np.array([rank[v] for v in frames if v in rank])
-    if r.size == 0:
-        return occupancy, 0.0
-    best = run = 1
-    for a, b in zip(r[:-1], r[1:]):
-        run = run + 1 if b - a <= delta + 1 else 1
-        best = max(best, run)
-    return occupancy, best / all_frames.size
+    r = np.sort(np.unique([rank[v] for v in np.asarray(frames) if v in rank]))
+    if r.size == 0 or n == 0:
+        return 0.0
+    runs, s, p = [], r[0], r[0]
+    for x in r[1:]:
+        if x - p - 1 <= delta:
+            p = x
+        else:
+            runs.append((s, p)); s = p = x
+    runs.append((s, p))
+    return sum(e - s + 1 for s, e in runs if e - s + 1 >= 0.2 * n) / n
+
+
+def persistence(frames, all_frames, delta: int = 5) -> tuple[float, float]:
+    """Occupancy and soft persistence of a set of frames (kept for compatibility)."""
+    all_frames = np.asarray(all_frames)
+    f = np.unique(np.asarray(frames))
+    occ = f.size / all_frames.size if all_frames.size else 0.0
+    return occ, _runs_fraction(f, all_frames, delta)
 
 
 def merge_into_regions(clusters_by_tool: dict[str, list[dict]],
                        cutoff: float = 6.5) -> list[dict]:
-    """Connected components of the inter-tool proximity graph."""
+    """Ward hierarchical clustering of all cluster centres, cut at ``cutoff``.
+
+    Each flat cluster of the dendrogram is a candidate region; its centre is the
+    simple (unweighted) mean of the member cluster centres.
+    """
+    from scipy.cluster.hierarchy import fcluster, linkage
     nodes = [{"tool": tool, **c} for tool, cl in clusters_by_tool.items() for c in cl]
     if not nodes:
         return []
     pts = np.array([n["centre"] for n in nodes])
-    parent = list(range(len(nodes)))
-
-    def find(i):
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-
-    for i, j in cKDTree(pts).query_pairs(cutoff):
-        if nodes[i]["tool"] != nodes[j]["tool"]:            # only across tools
-            ri, rj = find(i), find(j)
-            if ri != rj:
-                parent[ri] = rj
-
-    groups: dict[int, list[int]] = {}
-    for i in range(len(nodes)):
-        groups.setdefault(find(i), []).append(i)
-
+    if len(nodes) == 1:
+        labels = np.array([1])
+    else:
+        labels = fcluster(linkage(pts, "ward"), cutoff, "distance")
     regions = []
-    for members in groups.values():
+    for lab in np.unique(labels):
+        members = np.where(labels == lab)[0]
         tools = sorted({nodes[i]["tool"] for i in members})
-        weights = [nodes[i]["size"] for i in members]
+        per_tool = {t: np.unique(np.concatenate([nodes[i]["frames"] for i in members
+                                                 if nodes[i]["tool"] == t])) for t in tools}
         regions.append({
+            "id": int(lab),
             "n_tools": len(tools),
             "tools": tools,
             "n_members": len(members),
-            "centre": np.average([nodes[i]["centre"] for i in members], axis=0, weights=weights),
+            "centre": pts[members].mean(axis=0),
             "frames": np.unique(np.concatenate([nodes[i]["frames"] for i in members])),
+            "frames_by_tool": per_tool,
         })
     regions.sort(key=lambda r: (-r["n_tools"], -r["n_members"]))
     return regions
@@ -119,9 +127,13 @@ def run_pipeline(df: pd.DataFrame, phase: str, params: dict, *,
 
     clusters = {t: cluster_one_tool(sub[sub["tool"] == t], mcs[t]) for t in tools}
     regions = merge_into_regions(clusters, params["consensus"]["cutoff_A"])
+    delta = params["consensus"]["delta_frames"]
     for r in regions:
-        r["occupancy"], r["soft_persistence"] = persistence(
-            r["frames"], all_frames, params["consensus"]["delta_frames"])
+        r["occupancy"] = np.unique(r["frames"]).size / all_frames.size
+        soft = [_runs_fraction(f, all_frames, delta) for f in r["frames_by_tool"].values()]
+        strict = [_runs_fraction(f, all_frames, 0) for f in r["frames_by_tool"].values()]
+        r["soft_persistence"], r["soft_sd"] = float(np.mean(soft)), float(np.std(soft))
+        r["strict_persistence"], r["strict_sd"] = float(np.mean(strict)), float(np.std(strict))
     return clusters, regions
 
 
@@ -146,4 +158,7 @@ def regions_to_frame(regions: list[dict], phase: str, label: str = "") -> pd.Dat
         "z": round(float(r["centre"][2]), 2),
         "occupancy": round(r["occupancy"], 3),
         "soft_persistence": round(r["soft_persistence"], 3),
+        "soft_sd": round(r.get("soft_sd", float("nan")), 3),
+        "strict_persistence": round(r.get("strict_persistence", float("nan")), 3),
+        "strict_sd": round(r.get("strict_sd", float("nan")), 3),
     } for i, r in enumerate(regions, 1)])

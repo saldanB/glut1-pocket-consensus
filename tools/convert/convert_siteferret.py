@@ -1,6 +1,7 @@
 """SiteFerret -> output.pdb.N.pdb + centroid table
 
-SiteFerret writes, per frame, a *_Pfiles directory containing for each pocket
+SiteFerret, run through scripts/loop.py, writes per frame an
+output/<name>_pockets directory (older versions: *_Pfiles) containing for each pocket
 
     p<n>_atm.pqr            the surface atoms lining the pocket
     clusterPocket<n>.pqr    the probe spheres filling it
@@ -41,7 +42,7 @@ for i in range(1, N + 1):
     base = os.path.join(NAT, "f%d" % i)
     if not os.path.isdir(base):
         continue
-    pfiles = glob.glob(os.path.join(base, "*_Pfiles"))
+    pfiles = glob.glob(os.path.join(base, "*_Pfiles")) or glob.glob(os.path.join(base, "*_pockets"))
     if not pfiles:
         continue
     pfiles = pfiles[0]
@@ -73,7 +74,7 @@ for i in range(1, N + 1):
             probes.append((i, index(p, r"clusterPocket(\d+)"), c[0], c[1], c[2], len(pts)))
 
 print("[siteferret] %d frames converted" % done)
-summarise(DEST, "STP", "(deposited files: about 600 per frame)")
+summarise(DEST, "STP")
 
 HEADER = "system,tool,frame,pocket_id,rank,x,y,z,n_points,phase"
 row = lambda r, ph: ("GLUT1,SiteFerret,%d,%d,%d,%.3f,%.3f,%.3f,%d,%s"

@@ -13,7 +13,7 @@ tools: [AutoSite, Fpocket, P2Rank, SiteHound, SiteFerret, DeepPocket]
 # of pockets they emit per frame; see the sensitivity analysis in run/03.
 min_cluster_size:
   Phase1: {AutoSite: 40, Fpocket: 40, P2Rank: 40, SiteHound: 40, SiteFerret: 20, DeepPocket: 30}
-  Phase2: {AutoSite: 100, Fpocket: 125, P2Rank: 120, SiteHound: 60, SiteFerret: 75, DeepPocket: 100}
+  Phase2: {AutoSite: 100, Fpocket: 125, P2Rank: 120, SiteHound: 60, SiteFerret: 40, DeepPocket: 100}
 
 consensus:
   cutoff_A: 6.5           # centroid distance below which clusters of different tools merge
@@ -42,3 +42,11 @@ sensitivity:
   subsample_n_frames: 80
   subsample_replicates: 40
   seed: 20260915
+
+# Figure 1: illustrative comparison of HDBSCAN and DBSCAN on the AutoSite centroids
+# (superposed). HDBSCAN uses min_cluster_size above; DBSCAN uses one global eps and
+# min_samples for both phases. The full eps sweep is in run/08 (Table S16).
+figure1:
+  tool: AutoSite
+  dbscan_eps_A: 2.5
+  dbscan_min_samples: 15

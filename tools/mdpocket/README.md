@@ -19,7 +19,7 @@ cd mdp_glut1 && mdpocket --trajectory_file traj.xtc \
 
 # 3. compare the map with the consensus regions
 python3 compare_mdpocket.py glut1 mdp_glut1/ mdp_glut1/topology.pdb results/ \
-                            --table4 <Table4.csv>
+                            --table4 results/11_table4_mdpocket.csv
 ```
 
 For AR, `prepare_mdpocket.py ar <fpocket_AR_dir> mdp_ar/` rebuilds the 59 frames
@@ -35,6 +35,7 @@ else in the pipeline, and prints the resulting RMSD. And the atom count must be
 identical in every frame, which the script checks and refuses to proceed
 without.
 
-The comparison in step 3 is made on lining residues at 5 A, the convention of
-Table 4, rather than on centre-to-centre distances; the reason is given in the
-header of `compare_mdpocket.py`.
+The comparison in step 3 is made on lining residues rather than on
+centre-to-centre distances; the reason is given in the header of
+`compare_mdpocket.py`. The residues of the consensus regions come from
+`run/11_table4.py` (`results/11_table4_mdpocket.csv`, model numbering).

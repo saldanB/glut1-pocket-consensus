@@ -44,4 +44,4 @@ for i in range(1, N + 1):
     done += 1
 
 print("[autosite] %d frames converted" % done)
-summarise(DEST, "STP", "(deposited files: about 2300 per frame)")
+summarise(DEST, "STP")

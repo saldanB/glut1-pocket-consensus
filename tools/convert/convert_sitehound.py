@@ -3,9 +3,16 @@
     python3 convert_sitehound.py <native_dir> <prepared_dir> <dest_dir> <n_frames>
                                  [--probe CMET] [--centroids centroids_SiteHound.csv]
 
-Output format: the protein plus one HETATM with residue name POC per retained
-cluster (its centre), in rank order, preceded by REMARK records carrying the
-interaction energy.
+Input: the per-frame output of the EasyMIFs wrapper (Easymifs.py) followed by
+SiteHound, i.e. <name>_<probe>_summary.dat (one line per cluster: id, total
+interaction energy, number of points, centre x y z) and <name>_<probe>_clusters.dat
+(one line per grid point: cluster id, energy, point energy, x y z, grid index).
+
+Output format: the protein plus, for each retained cluster in rank order, its
+grid points as HETATM records with residue name POC and residue number equal to
+the rank, preceded by REMARK records carrying the interaction energy. These grid
+points are the SiteHound point cloud used by the IoU analysis. The centroid
+table reports the cluster centre from the summary file.
 
 Cluster retention is adaptive rather than a fixed energy cutoff or a fixed
 top-N, because the absolute energies returned by EasyMIFs are not comparable
@@ -15,9 +22,10 @@ order; the knee of that curve is located with
 
     kneed.KneeLocator(curve="convex", direction="increasing")
 
-and the clusters with energy below -|knee| are retained. On the GLUT1 ensemble
-this yields between 2 and 24 clusters per frame (mean 10.61 in phase 1, 9.83 in
-phase 2).
+and the clusters with energy at or below -|knee| are retained (the knee point
+itself included; verified against the deposited Aldose Reductase output). On the
+GLUT1 ensemble this yields 11.47 clusters per frame in phase 1 and 12.03 in
+phase 2.
 
 Only the CMET probe map is used; the OP map is computed by the pipeline but does
 not contribute to the reported pockets.
@@ -75,16 +83,28 @@ for i in range(1, N + 1):
         continue
 
     cut = knee_cutoff([d[1] for d in data])
-    kept = [d for d in data if cut is None or d[1] < -abs(cut)]
+    kept = [d for d in data if cut is None or d[1] <= -abs(cut)]
     if not kept:
         continue
     kept.sort(key=lambda d: d[1])          # most negative first
+
+    grid = {}
+    cfile = summary[0].replace("_summary.dat", "_clusters.dat")
+    if os.path.exists(cfile):
+        with open(cfile, errors="replace") as fh:
+            for l in fh:
+                c = l.split()
+                if len(c) >= 6:
+                    try:
+                        grid.setdefault(int(float(c[0])), []).append((float(c[3]), float(c[4]), float(c[5])))
+                    except ValueError:
+                        pass
 
     remarks = ["REMARK   --- SITEHOUND POCKET CENTERS ---"]
     groups = []
     for rank, (k, energy, npts, x, y, z) in enumerate(kept, start=1):
         remarks.append("REMARK   POCKET RANK pocket_%d ENERGY: %.3f" % (rank, energy))
-        groups.append((rank, [(x, y, z)]))
+        groups.append((rank, grid.get(k) or [(x, y, z)]))
         rows.append((i, rank, k, x, y, z, energy, npts))
 
     write_pdb(os.path.join(DEST, "output.pdb.%d_pockets.pdb" % i),
@@ -94,9 +114,9 @@ for i in range(1, N + 1):
 
 print("[sitehound] %d frames converted (probe %s)" % (done, PROBE))
 if per_frame:
-    print("   pockets per frame: mean %.2f, min %d, max %d   (deposited: 10.61 / 2 / 24)"
+    print("   pockets per frame: mean %.2f, min %d, max %d   (deposited table: 11.47 / 12.03 per phase)"
           % (float(np.mean(per_frame)), min(per_frame), max(per_frame)))
-summarise(DEST, "POC", "(deposited files: 2-24 per frame)")
+summarise(DEST, "POC")
 
 write_centroids(
     OUT, rows, "SiteHound",
