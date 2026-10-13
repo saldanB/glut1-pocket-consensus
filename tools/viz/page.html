@@ -90,7 +90,8 @@ const CHAIN  = __CHAIN_JSON__;
 const CONSENSUS_COLOUR = "__CONSENSUS_COLOUR__";
 const PUBLISHED_COLOUR = "__PUBLISHED_COLOUR__";
 const COLOUR_BY = "__COLOUR_BY__";
-const CLUSTER_SCHEME = __CLUSTER_SCHEME_JSON__;
+const CLUSTER_PALETTE = __CLUSTER_PALETTE_JSON__;
+const NOISE_COLOUR = "__NOISE_COLOUR__";
 // degrees about x, y, z, applied once to the initial view
 const ROTATE = __ROTATE_JSON__;
 const text = id => document.getElementById(id).textContent;
@@ -117,8 +118,8 @@ const LAYERS = {
 };
 
 // Colouring the points by cluster needs one colour per (detector, cluster), which
-// is a registered selection scheme rather than a colour per representation. It is
-// built once per phase, so a cluster keeps its colour as the frame changes.
+// is a registered colormaker rather than a colour per representation. It is built
+// once per phase, so a cluster keeps its colour as the frame changes.
 // A hull is a triangle mesh, not a structure, so it goes on the stage as a Shape
 // rather than as a loaded file. One Shape per detector, so that the detector
 // checkboxes can show and hide them the way they do every other layer.
@@ -157,10 +158,27 @@ function dropHulls() {
 let schemeId = null, schemePhase = null;
 function cloudColour(entry) {
   if (COLOUR_BY !== "cluster") return null;
-  const scheme = CLUSTER_SCHEME[entry.phase];
-  if (!scheme) return null;
+  const palette = CLUSTER_PALETTE[entry.phase];
+  if (!palette) return null;
   if (schemePhase !== entry.phase) {
-    schemeId = NGL.ColormakerRegistry.addSelectionScheme(scheme, "cluster-" + entry.phase);
+    // One lookup per atom. A selection scheme would test each atom against one
+    // selection string per cluster instead, which is the slow path this replaces.
+    const rgb = {};
+    for (const key in palette) {
+      const h = palette[key];
+      rgb[key] = (parseInt(h.slice(1, 3), 16) << 16)
+               | (parseInt(h.slice(3, 5), 16) << 8)
+               | parseInt(h.slice(5, 7), 16);
+    }
+    const noise = (parseInt(NOISE_COLOUR.slice(1, 3), 16) << 16)
+                | (parseInt(NOISE_COLOUR.slice(3, 5), 16) << 8)
+                | parseInt(NOISE_COLOUR.slice(5, 7), 16);
+    schemeId = NGL.ColormakerRegistry.addScheme(function () {
+      this.atomColor = function (atom) {
+        const c = rgb[atom.chainname + ":" + atom.resno];
+        return c === undefined ? noise : c;
+      };
+    }, "cluster-" + entry.phase);
     schemePhase = entry.phase;
   }
   return schemeId;

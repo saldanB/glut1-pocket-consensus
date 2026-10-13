@@ -78,16 +78,19 @@ def cluster_colours(phase: str, tools) -> dict[tuple[str, int], str]:
     return colours
 
 
-def cluster_scheme(phase: str, tools) -> list[list[str]]:
-    """The same palette as an NGL selection scheme, for the per-atom point colours.
+def cluster_palette(phase: str, tools) -> dict[str, str]:
+    """The same palette keyed "<chain>:<residue>", for the per-atom point colours.
 
-    Residue number 0 is what HDBSCAN called noise, left grey.
+    A point carries its detector in the chain and its cluster in the residue
+    number, so the page colours an atom with one lookup in this table. An NGL
+    selection scheme would instead test every atom against one selection string
+    per cluster, which is around ninety string matches per point and the reason
+    colouring by cluster used to be far slower than colouring by detector.
+    Residue number 0 is what HDBSCAN called noise; it is absent here and the page
+    falls back to the noise colour, which also covers anything unaccounted for.
     """
-    colours = cluster_colours(phase, tools)
-    scheme = [[colour, ":%s and %d" % (overlay.CHAIN[tool], number)]
-              for (tool, number), colour in colours.items()]
-    scheme += [[NOISE_COLOUR, ":%s and 0" % overlay.CHAIN[tool]] for tool in tools]
-    return scheme
+    return {"%s:%d" % (overlay.CHAIN[tool], number): colour
+            for (tool, number), colour in cluster_colours(phase, tools).items()}
 
 
 def parse_frames(text: str) -> list[int]:
@@ -265,7 +268,8 @@ def write_html(data: list[dict], path: str, tools, rotate=(90.0, 0.0, 0.0),
             .replace("__PUBLISHED_COLOUR__", PUBLISHED_COLOUR)
             .replace("__ROTATE_JSON__", json.dumps([float(d) for d in rotate]))
             .replace("__COLOUR_BY__", colour_by)
-            .replace("__CLUSTER_SCHEME_JSON__", json.dumps(scheme or {})))
+            .replace("__CLUSTER_PALETTE_JSON__", json.dumps(scheme or {}))
+            .replace("__NOISE_COLOUR__", NOISE_COLOUR))
     with open(path, "w") as fh:
         fh.write(page)
     return path
@@ -331,7 +335,7 @@ def main() -> None:
                   "in the frame" % ", ".join(missing))
     if A.clouds and A.colour_by == "cluster":
         for phase in sorted({item["phase"] for item in data}):
-            scheme[phase] = cluster_scheme(phase, tools)
+            scheme[phase] = cluster_palette(phase, tools)
             _, counts = assignment_for(phase, tools)
             print("  %s: points coloured by %d clusters (%s)"
                   % (phase, sum(counts.values()),
