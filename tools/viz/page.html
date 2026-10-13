@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ngl/2.3.1/ngl.js"></script>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --line:#272c36; --text:#e6e9ef; --muted:#9aa4b2; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:14px/1.45 ui-sans-serif,-apple-system,Segoe UI,Roboto,sans-serif; }
+  #wrap { display:flex; height:100vh; }
+  #stage { flex:1; position:relative; min-width:0; }
+  #side { width:260px; flex:none; border-left:1px solid var(--line);
+          background:var(--panel); padding:16px; overflow-y:auto; }
+  h1 { font-size:15px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:12px; margin-bottom:16px; }
+  .group { border-top:1px solid var(--line); padding:12px 0; }
+  .group h2 { font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+              color:var(--muted); margin:0 0 8px; font-weight:600; }
+  label { display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; }
+  label span.n { margin-left:auto; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .dot { width:10px; height:10px; border-radius:50%; flex:none; }
+  input[type=range] { width:100%; }
+  #frameLabel { font-variant-numeric:tabular-nums; }
+  button { background:#222733; color:var(--text); border:1px solid var(--line);
+           border-radius:6px; padding:5px 10px; cursor:pointer; font-size:12px; }
+  button:hover { background:#2b3140; }
+  #note { color:var(--muted); font-size:11px; margin-top:4px; }
+  label.off { opacity:.45; cursor:default; }
+  label.off span.n { font-style:italic; font-size:11px; }
+  @media (max-width:760px) { #wrap { flex-direction:column; }
+    #side { width:auto; border-left:0; border-top:1px solid var(--line); max-height:45vh; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage"></div>
+  <div id="side">
+    <h1>__TITLE__</h1>
+    <div class="sub">__SUBTITLE__</div>
+    <div class="group" id="frameGroup">
+      <h2>Frame <span id="frameLabel"></span></h2>
+      <input type="range" id="slider" min="0" max="0" value="0" step="1">
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button id="prev">&larr;</button><button id="play">Play</button><button id="next">&rarr;</button>
+      </div>
+      <div id="note"></div>
+    </div>
+    <div class="group">
+      <h2>Detectors</h2>
+      <div id="tools"></div>
+    </div>
+    <div class="group" id="layerGroup" style="display:none">
+      <h2>Layers</h2>
+      <label id="rowPockets"><input type="checkbox" id="layer-pockets" checked>
+        predicted pockets<span class="n" id="n-pockets"></span></label>
+      <label id="rowHulls"><input type="checkbox" id="layer-hulls" checked>
+        convex hull per cluster<span class="n" id="n-hulls"></span></label>
+      <label id="rowClouds"><input type="checkbox" id="layer-clouds" checked>
+        <span id="cloudLabel">pocket-defining points</span>
+        <span class="n" id="n-clouds"></span></label>
+    </div>
+    <div class="group" id="refGroup">
+      <h2>Reference</h2>
+      <label id="rowConsensus">
+        <input type="checkbox" id="showConsensus" checked>
+        <span class="dot" style="background:__CONSENSUS_COLOUR__"></span>consensus regions
+        <span class="n" id="n-consensus"></span></label>
+      <label id="rowPublished">
+        <input type="checkbox" id="showPublished" checked>
+        <span class="dot" style="background:__PUBLISHED_COLOUR__"></span>published centres
+        <span class="n" id="n-published"></span></label>
+    </div>
+    <div class="group">
+      <h2>Structure</h2>
+      <label><input type="checkbox" id="cartoon" checked> cartoon</label>
+      <label><input type="checkbox" id="surface"> molecular surface</label>
+      <label><input type="checkbox" id="spin"> spin</label>
+      <button id="reset" style="margin-top:8px">Reset view</button>
+    </div>
+  </div>
+</div>
+__PAYLOAD__
+<script>
+const DATA   = __FRAMES_JSON__;
+const COLOUR = __COLOUR_JSON__;
+const CHAIN  = __CHAIN_JSON__;
+const CONSENSUS_COLOUR = "__CONSENSUS_COLOUR__";
+const PUBLISHED_COLOUR = "__PUBLISHED_COLOUR__";
+const COLOUR_BY = "__COLOUR_BY__";
+const CLUSTER_SCHEME = __CLUSTER_SCHEME_JSON__;
+// degrees about x, y, z, applied once to the initial view
+const ROTATE = __ROTATE_JSON__;
+const text = id => document.getElementById(id).textContent;
+
+// clipDist is what slices a molecular surface when the camera gets close, and
+// the default fog dims whatever sits behind the midpoint; both are off here.
+const stage = new NGL.Stage("stage", {backgroundColor: "#0f1115",
+  clipNear: 0, clipFar: 100, clipDist: 0, fogNear: 100, fogFar: 100});
+window.addEventListener("resize", () => stage.handleResize());
+
+// the reference sets are the only thing that does not change with the frame
+const PHASE_KEYS = ["consensus", "published"];
+let comps = {structure:null, pockets:null, clouds:null,
+             consensus:null, published:null, hulls:null};
+let shown = Object.fromEntries(Object.keys(CHAIN).map(t => [t, true]));
+let current = 0, playing = false, home = null, refPhase = null, token = 0;
+
+// every layer below is per detector, so the detector checkboxes and the layer
+// checkboxes both filter it; the layer is rebuilt rather than hidden, because a
+// representation per tool per layer is cheap and keeps the state in one place
+const LAYERS = {
+  pockets: {style: "spacefill", params: {radius: 1.6, opacity: 0.85}},
+  clouds:  {style: "point",     params: {pointSize: 3, opacity: 0.7}},
+};
+
+// Colouring the points by cluster needs one colour per (detector, cluster), which
+// is a registered selection scheme rather than a colour per representation. It is
+// built once per phase, so a cluster keeps its colour as the frame changes.
+// A hull is a triangle mesh, not a structure, so it goes on the stage as a Shape
+// rather than as a loaded file. One Shape per detector, so that the detector
+// checkboxes can show and hide them the way they do every other layer.
+function hullComponents(entry) {
+  if (!entry.hulls) return null;
+  const byTool = {};
+  for (const mesh of JSON.parse(text(entry.hulls)))
+    (byTool[mesh.tool] = byTool[mesh.tool] || []).push(mesh);
+  const out = [];
+  for (const tool in byTool) {
+    const shape = new NGL.Shape("hulls-" + tool);
+    for (const mesh of byTool[tool]) {
+      const hex = mesh.colour;
+      const r = parseInt(hex.slice(1, 3), 16) / 255,
+            g = parseInt(hex.slice(3, 5), 16) / 255,
+            b = parseInt(hex.slice(5, 7), 16) / 255;
+      const colour = new Array(mesh.position.length);
+      for (let i = 0; i < mesh.position.length; i += 3) {
+        colour[i] = r; colour[i + 1] = g; colour[i + 2] = b;
+      }
+      shape.addMesh(mesh.position, colour, mesh.index, mesh.normal,
+                    tool + " cluster " + mesh.cluster + ", " +
+                    mesh.volume + " A3, " + mesh.n_points + " points");
+    }
+    out.push({tool: tool, comp: stage.addComponentFromObject(shape)});
+  }
+  return out;
+}
+
+function dropHulls() {
+  if (!comps.hulls) return;
+  for (const h of comps.hulls) stage.removeComponent(h.comp);
+  comps.hulls = null;
+}
+
+let schemeId = null, schemePhase = null;
+function cloudColour(entry) {
+  if (COLOUR_BY !== "cluster") return null;
+  const scheme = CLUSTER_SCHEME[entry.phase];
+  if (!scheme) return null;
+  if (schemePhase !== entry.phase) {
+    schemeId = NGL.ColormakerRegistry.addSelectionScheme(scheme, "cluster-" + entry.phase);
+    schemePhase = entry.phase;
+  }
+  return schemeId;
+}
+
+function layerOn(key) {
+  const box = document.getElementById("layer-" + key);
+  return !box || box.checked;
+}
+
+for (const key of ["hulls"]) {
+  const box = document.getElementById("layer-" + key);
+  if (box) box.onchange = () => drawLayers();
+}
+
+function drawLayers() {
+  if (comps.hulls) {
+    for (const h of comps.hulls) {
+      h.comp.removeAllRepresentations();
+      if (!layerOn("hulls") || !shown[h.tool]) continue;
+      h.comp.addRepresentation("buffer", {opacity: 0.45, side: "double"});
+    }
+  }
+  for (const key in LAYERS) {
+    const comp = comps[key];
+    if (!comp) continue;
+    comp.removeAllRepresentations();
+    if (!layerOn(key)) continue;
+    const byCluster = key === "clouds" ? cloudColour(DATA[current]) : null;
+    for (const tool in CHAIN) {
+      if (!shown[tool]) continue;
+      comp.addRepresentation(LAYERS[key].style,
+        Object.assign({sele: ":" + CHAIN[tool], color: byCluster || COLOUR[tool]},
+                      LAYERS[key].params));
+    }
+  }
+}
+
+function drawStructure() {
+  if (!comps.structure) return;
+  comps.structure.removeAllRepresentations();
+  if (document.getElementById("cartoon").checked)
+    comps.structure.addRepresentation("cartoon", {color: "#b8c4d0", opacity: 0.45});
+  if (document.getElementById("surface").checked)
+    comps.structure.addRepresentation("surface",
+      {color: "#7f8da0", opacity: 0.15, surfaceType: "ms", probeRadius: 1.4,
+       side: "double"});
+}
+
+function drawReference() {
+  if (comps.consensus) {
+    comps.consensus.removeAllRepresentations();
+    if (document.getElementById("showConsensus").checked)
+      comps.consensus.addRepresentation("spacefill",
+        {color: CONSENSUS_COLOUR, radius: 2.6, opacity: 0.5, side: "double"});
+  }
+  if (comps.published) {
+    comps.published.removeAllRepresentations();
+    if (document.getElementById("showPublished").checked)
+      comps.published.addRepresentation("spacefill",
+        {color: PUBLISHED_COLOUR, radius: 2.0, opacity: 0.6, side: "double"});
+  }
+}
+
+const blob = id => new Blob([text(id)], {type: "text/plain"});
+
+async function load(i, keepView) {
+  // Dragging the slider fires this faster than a structure loads, so each call
+  // takes a ticket: a call that has been overtaken throws away whatever it
+  // loaded instead of leaving it on the stage, and only the newest call swaps
+  // the components over. Without this the old pockets are never removed.
+  const mine = ++token;
+  const entry = DATA[i];
+  const orientation = keepView ? stage.viewerControls.getOrientation() : null;
+
+  const next = {};
+  for (const key of ["structure", "pockets", "clouds"]) {
+    if (!entry[key]) continue;
+    next[key] = await stage.loadFile(blob(entry[key]), {ext: "pdb"});
+    if (mine !== token) {
+      for (const c of Object.values(next)) stage.removeComponent(c);
+      return;
+    }
+  }
+  for (const key of ["structure", "pockets", "clouds"]) {
+    if (comps[key]) { stage.removeComponent(comps[key]); comps[key] = null; }
+  }
+  dropHulls();
+  Object.assign(comps, next);
+  comps.hulls = hullComponents(entry);
+
+  // the reference sets are per phase, so they are reloaded only when it changes
+  if (entry.phase !== refPhase) {
+    for (const key of PHASE_KEYS) {
+      if (comps[key]) { stage.removeComponent(comps[key]); comps[key] = null; }
+    }
+    for (const key of PHASE_KEYS) {
+      if (!entry[key]) continue;
+      const loaded = await stage.loadFile(blob(entry[key]), {ext: "pdb"});
+      if (mine !== token) { stage.removeComponent(loaded); return; }
+      comps[key] = loaded;
+    }
+    refPhase = entry.phase;
+  }
+  drawStructure();
+  drawLayers();
+  drawReference();
+  document.getElementById("frameLabel").textContent = entry.frame;
+  document.getElementById("note").textContent =
+    entry.phase + (entry.aligned ? ", superposed" : ", as supplied to the detectors");
+  document.getElementById("n-pockets").textContent =
+    Object.values(entry.per_tool || {}).reduce((a, b) => a + b, 0);
+  const counts = entry.per_tool || {};
+  for (const tool in CHAIN) {
+    const cell = document.getElementById("n-" + tool);
+    if (cell) cell.textContent = counts[tool] || 0;
+  }
+  // the reference sets differ between the phases, so their counts follow the frame
+  for (const [key, count, cell] of [["consensus", "n_consensus", "n-consensus"],
+                                    ["published", "n_published", "n-published"],
+                                    ["clouds", "n_points", "n-clouds"],
+                                    ["hulls", "n_hulls", "n-hulls"]]) {
+    if (!entry[key]) continue;        // not built: keep the flag hint in the cell
+    const box = document.getElementById(cell);
+    if (box) box.textContent = entry[count];
+  }
+  if (orientation) stage.viewerControls.orient(orientation);
+  else {
+    stage.autoView();
+    // the requested view is the home view, so reset comes back here too
+    const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    for (let k = 0; k < 3; k++)
+      if (ROTATE[k]) stage.viewerControls.spin(axes[k], ROTATE[k] * Math.PI / 180);
+    if (!home) home = stage.viewerControls.getOrientation().clone();
+  }
+  current = i;
+}
+
+const box = document.getElementById("tools");
+for (const tool in CHAIN) {
+  const row = document.createElement("label");
+  row.innerHTML = '<input type="checkbox" checked data-tool="' + tool + '">' +
+    '<span class="dot" style="background:' + COLOUR[tool] + '"></span>' + tool +
+    '<span class="n" id="n-' + tool + '"></span>';
+  row.querySelector("input").addEventListener("change", e => {
+    shown[e.target.dataset.tool] = e.target.checked; drawLayers();
+  });
+  box.appendChild(row);
+}
+
+const first = DATA[0];
+document.getElementById("layerGroup").style.display = "";
+// a layer that was not built stays listed but disabled, naming the flag that
+// builds it, so the option is discoverable from the page itself
+if (first.clouds && COLOUR_BY === "cluster")
+  document.getElementById("cloudLabel").textContent = "pocket points, by cluster";
+for (const [key, row, boxId, flag] of [
+      ["hulls",     "rowHulls",     "layer-hulls",   "--hulls"],
+      ["clouds",    "rowClouds",    "layer-clouds",  "--clouds"],
+      ["consensus", "rowConsensus", "showConsensus", "--consensus"],
+      ["published", "rowPublished", "showPublished", "--published"]]) {
+  if (first[key]) continue;
+  const label = document.getElementById(row);
+  const box = document.getElementById(boxId);
+  label.className = "off";
+  label.title = "rebuild the page with " + flag;
+  box.checked = false;
+  box.disabled = true;
+  const cell = document.getElementById("n-" + key);
+  if (cell) cell.textContent = flag;
+}
+for (const key in LAYERS) {
+  const box = document.getElementById("layer-" + key);
+  if (box) box.onchange = drawLayers;
+}
+document.getElementById("showConsensus").onchange = drawReference;
+document.getElementById("showPublished").onchange = drawReference;
+
+const slider = document.getElementById("slider");
+slider.max = DATA.length - 1;
+slider.addEventListener("input", () => load(+slider.value, true));
+document.getElementById("prev").onclick = () => { slider.value = Math.max(0, current - 1); load(+slider.value, true); };
+document.getElementById("next").onclick = () => { slider.value = Math.min(DATA.length - 1, current + 1); load(+slider.value, true); };
+// playback waits for each frame to finish loading rather than firing on a timer,
+// so no frame is started only to be discarded by the next tick
+async function playLoop() {
+  while (playing) {
+    const next = (current + 1) % DATA.length;
+    slider.value = next;
+    await load(next, true);
+    if (!playing) break;
+    await new Promise(r => setTimeout(r, 250));
+  }
+}
+document.getElementById("play").onclick = e => {
+  playing = !playing;
+  e.target.textContent = playing ? "Pause" : "Play";
+  if (playing) playLoop();
+};
+if (DATA.length === 1) document.getElementById("frameGroup").querySelector("input").disabled = true;
+document.getElementById("cartoon").onchange = drawStructure;
+document.getElementById("surface").onchange = drawStructure;
+document.getElementById("spin").onchange = e => stage.setSpin(e.target.checked);
+document.getElementById("reset").onclick = () => {
+  if (home) stage.viewerControls.orient(home.clone());
+  else stage.autoView();
+};
+
+load(0, false);
+</script>
+</body>
+</html>

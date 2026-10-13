@@ -74,6 +74,51 @@ Individual analyses can be run on their own, for example
 `python run/03_sensitivity.py c e`. `--quick` reduces the subsampling
 replicates of `03` for a smoke test.
 
+## Looking at the frames
+
+`tools/viz/` draws one frame of the ensemble with the predicted pockets projected
+onto it, in the browser via NGL. It is an inspection tool, not part of the
+reproduction path: nothing in `run/` depends on it.
+
+```bash
+python tools/viz/view_frame.py 42                     # one frame, all six detectors
+python tools/viz/view_frame.py 42 --tools Fpocket P2Rank --top-k 5
+python tools/viz/view_frame.py 1-24 --out ensemble.html --open
+python tools/viz/view_frame.py 1-500:25 --out sweep.html    # every 25th frame
+python tools/viz/view_frame.py 42 --clouds                  # pocket-defining points
+python tools/viz/view_frame.py 42 --clouds --colour-by cluster   # by HDBSCAN cluster (default)
+python tools/viz/view_frame.py 42 --clouds --colour-by tool      # by detector
+python tools/viz/view_frame.py 42 --hulls                   # one surface per cluster
+python tools/viz/view_frame.py 42 --consensus --published    # regions and paper centres
+```
+
+A frame argument is a single frame, an interval (`1-24`), a list (`1,5,9`) or an
+interval with a step (`1-500:25`); more than one frame gives a slider. The output
+is a standalone HTML page under `results/`.
+
+The frames themselves are not in this repository: the viewer fetches the ones it
+needs from the Zenodo deposit into `data/frames/`, which is not tracked. Only the
+requested members are read out of the archive, so looking at one frame does not
+download the whole ensemble. This is the one part of the project that uses the
+network, and nothing in `run/` ever calls it.
+
+`--clouds` and `--hulls` read `data/pointclouds/`. `--colour-by cluster`, the
+default, gives every HDBSCAN cluster its own hue, so a cluster keeps its colour as
+you step through the frames and the points that belong to no cluster are grey;
+cluster numbers restart per detector, so cluster 7 of AutoSite and cluster 7 of
+Fpocket are different clusters with different colours. `--colour-by tool` gives one
+colour per detector instead, matching the pocket markers. `--color-by` is accepted
+as well.
+
+Colouring by cluster is the only option that needs the superposed centroids, so it
+implies `--align` and therefore `results/pockets_aligned.csv` from
+`run/01_align.py`; `--colour-by tool` does not. `--consensus` needs
+`results/02_consensus_regions.csv` from `run/02_consensus.py`. The tool says so if
+a table is missing.
+
+See [`tools/viz/README.md`](tools/viz/README.md) for the layers, the colouring and
+the superposition.
+
 ## Layout
 
 ```
@@ -86,6 +131,7 @@ run/                     one script per analysis, plus 99_verify.py
 tools/                   how the six detectors were run, with the exact command lines
 tools/convert/           native tool output -> the common pocket table
 tools/mdpocket/          the trajectory-based cross-check
+tools/viz/               frame viewer: pockets projected on the structure (NGL)
 results/                 produced by the scripts; not tracked
 ```
 

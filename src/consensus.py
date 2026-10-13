@@ -28,12 +28,22 @@ except ImportError as exc:  # pragma: no cover
     raise SystemExit("hdbscan is required: conda env create -f environment.yml") from exc
 
 
+def cluster_labels(xyz: np.ndarray, min_cluster_size: int) -> np.ndarray:
+    """HDBSCAN labels for one tool's centroids. Label -1 is noise.
+
+    The single place the clustering is performed, so that anything wanting the
+    cluster membership rather than only the cluster centres -- the frame viewer in
+    tools/viz -- sees exactly what the pipeline saw.
+    """
+    return _hdbscan.HDBSCAN(min_cluster_size=int(min_cluster_size)).fit_predict(xyz)
+
+
 def cluster_one_tool(sub: pd.DataFrame, min_cluster_size: int) -> list[dict]:
     """HDBSCAN over the centroids of a single tool. Noise (label -1) is dropped."""
     xyz = sub[["x", "y", "z"]].to_numpy()
     if len(xyz) < min_cluster_size:
         return []
-    labels = _hdbscan.HDBSCAN(min_cluster_size=int(min_cluster_size)).fit_predict(xyz)
+    labels = cluster_labels(xyz, min_cluster_size)
     frames = sub["frame"].to_numpy()
     out = []
     for lab in sorted(set(labels) - {-1}):
