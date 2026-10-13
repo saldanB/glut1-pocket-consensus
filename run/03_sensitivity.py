@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Robustness of the consensus regions (Editor E2, R2 #5, R3 #3/#6/#7, R4 #1/#2).
+"""Robustness of the consensus regions.
 
 Five analyses, each writing one table:
 

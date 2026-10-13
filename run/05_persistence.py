@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sensitivity of the persistence estimates (R4 #1).
+"""Sensitivity of the persistence estimates.
 
   a  minimum run length (10, 20, 30% of the phase) x gap tolerance delta (0, 2, 5, 10)
   b  minimum soft/strict persistence for each min_cluster_size scale of run/03a

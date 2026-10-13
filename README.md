@@ -136,7 +136,7 @@ results/                 produced by the scripts; not tracked
 ```
 
 **All parameters live in `data/parameters.yaml`.** Nothing is hard-coded in the
-code, so a reviewer can change a cutoff and re-run without reading the source.
+code, so an user can change a cutoff and re-run without reading the source.
 
 ## A note on reproducibility
 

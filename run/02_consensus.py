@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Consensus regions, with and without superposition (Editor E3, R1 #2).
+"""Consensus regions, with and without superposition.
 
 Writes results/02_consensus_summary.csv, results/02_consensus_regions.csv
 """

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 1 versus phase 2 on frame-level quantities (R3 #2, R4 #2).
+"""Phase 1 versus phase 2 on frame-level quantities.
 
   a  pockets per frame and radius of gyration of the pocket centroids, per tool,
      compared with a block permutation test (block = autocorrelation time)

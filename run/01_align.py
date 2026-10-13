@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Superpose the ensemble and quantify what the superposition does (Editor E3, R3 #4).
+"""Superpose the ensemble and quantify what the superposition does.
 
 Reads  data/pockets_master.csv, data/protein_ca.npz
 Writes results/pockets_aligned.csv, results/01_alignment_effect.csv

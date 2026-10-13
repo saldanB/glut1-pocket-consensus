@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Table 4 of the paper: consensus regions with identifiers, persistence, IoU
-occupancy, lining residues and cross-phase correspondence (R1 #2).
+occupancy, lining residues and cross-phase correspondence.
 
 Lining residues: residues with at least one atom within 6 A of the region centre
 in the reference frame (data/reference_frame1.pdb), in human GLUT1 numbering

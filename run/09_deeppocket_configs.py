@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Consensus with alternative DeepPocket configurations (R3 #11).
+"""Consensus with alternative DeepPocket configurations.
 
 For each table in data/deeppocket_configs/ (frame, pocket, x, y, z of the
 segmented pockets, centroid = mean of the pocket atoms) the DeepPocket pockets

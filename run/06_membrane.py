@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Membrane-band retention per tool, and consensus without membrane pockets (Editor E2).
+"""Membrane-band retention per tool, and consensus without membrane pockets.
 
 A pocket is membrane-embedded when every one of its pocket-defining points lies
 within +/- 15.6 A of the protein's Calpha centre along z (the membrane normal),

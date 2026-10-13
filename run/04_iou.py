@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Volumetric agreement and its parameter sensitivity (Editor E1, R3 #8, R4 #1).
+"""Volumetric agreement and its parameter sensitivity.
 
 Needs the per-tool point clouds in data/pointclouds/, one archive per tool; see
 data/README.md. The script exits with a clear message if they are absent.
