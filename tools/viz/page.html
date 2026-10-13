@@ -245,6 +245,15 @@ function drawReference() {
 
 const blob = id => new Blob([text(id)], {type: "text/plain"});
 
+// NGL infers covalent bonds within every residue of a loaded file, which costs
+// seconds for the point clouds: the points sit about an Angstrom apart, so a
+// residue of a few thousand of them yields hundreds of thousands of bonds. None
+// of the layers below the structure is drawn as bonds -- pockets and points are
+// spheres and points, hulls are meshes -- so the inference is skipped for them.
+// Only the structure keeps it, because the cartoon follows the backbone.
+const pdb = (id, bonds) =>
+  stage.loadFile(blob(id), {ext: "pdb", inferBonds: bonds ? "all" : "none"});
+
 async function load(i, keepView) {
   // Dragging the slider fires this faster than a structure loads, so each call
   // takes a ticket: a call that has been overtaken throws away whatever it
@@ -257,7 +266,7 @@ async function load(i, keepView) {
   const next = {};
   for (const key of ["structure", "pockets", "clouds"]) {
     if (!entry[key]) continue;
-    next[key] = await stage.loadFile(blob(entry[key]), {ext: "pdb"});
+    next[key] = await pdb(entry[key], key === "structure");
     if (mine !== token) {
       for (const c of Object.values(next)) stage.removeComponent(c);
       return;
@@ -277,7 +286,7 @@ async function load(i, keepView) {
     }
     for (const key of PHASE_KEYS) {
       if (!entry[key]) continue;
-      const loaded = await stage.loadFile(blob(entry[key]), {ext: "pdb"});
+      const loaded = await pdb(entry[key], false);
       if (mine !== token) { stage.removeComponent(loaded); return; }
       comps[key] = loaded;
     }
